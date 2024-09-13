@@ -1,5 +1,6 @@
 package com.atguigu.lease.web.app.service.impl;
 
+import com.atguigu.lease.common.constant.RedisConstant;
 import com.atguigu.lease.model.entity.ApartmentInfo;
 import com.atguigu.lease.model.entity.FacilityInfo;
 import com.atguigu.lease.model.entity.LabelInfo;
@@ -10,12 +11,14 @@ import com.atguigu.lease.web.app.vo.apartment.ApartmentDetailVo;
 import com.atguigu.lease.web.app.vo.apartment.ApartmentItemVo;
 import com.atguigu.lease.web.app.vo.graph.GraphVo;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liubo
@@ -26,20 +29,23 @@ import java.util.List;
 public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, ApartmentInfo>
         implements ApartmentInfoService {
 
-    @Autowired
+    @Resource
     private ApartmentInfoMapper apartmentInfoMapper;
 
-    @Autowired
+    @Resource
     private LabelInfoMapper labelInfoMapper;
 
-    @Autowired
+    @Resource
     private GraphInfoMapper graphInfoMapper;
 
-    @Autowired
+    @Resource
     private RoomInfoMapper roomInfoMapper;
 
-    @Autowired
+    @Resource
     private FacilityInfoMapper facilityInfoMapper;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
 
 
@@ -66,8 +72,25 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
     @Override
     public ApartmentDetailVo getApartmentDetailById(Long id) {
         ApartmentInfo apartmentInfo = apartmentInfoMapper.selectById(id);
-        List<GraphVo> graphVoList=graphInfoMapper.selectListByItemTypeAndId(ItemType.APARTMENT, id);
-        List<LabelInfo> labelInfoList=labelInfoMapper.selectListByApartmentId(id);
+
+        String graphVoKey=RedisConstant.APP_GRAPHVOLIST_PREFIX +id;
+        List<GraphVo> graphVoList =(List<GraphVo>)(List<?>) redisTemplate.opsForList().range(graphVoKey, 0, -1);
+        if (graphVoList == null||graphVoList.isEmpty()) {
+            graphVoList=graphInfoMapper.selectListByItemTypeAndId(ItemType.APARTMENT, id);
+            redisTemplate.opsForList().rightPush(graphVoKey,graphVoList);
+            redisTemplate.expire(graphVoKey,RedisConstant.offSet, TimeUnit.SECONDS);
+        }
+
+        String labelInfoKey=RedisConstant.APP_LABELINFO_PREFIX+id;
+        List<LabelInfo> labelInfoList=(List<LabelInfo>)(List<?>) redisTemplate.opsForList().range(labelInfoKey, 0, -1);
+        if (labelInfoList==null||labelInfoList.isEmpty()) {
+            labelInfoList=labelInfoMapper.selectListByApartmentId(id);
+            redisTemplate.opsForList().rightPush(labelInfoKey,labelInfoList);
+            redisTemplate.expire(labelInfoKey,RedisConstant.offSet, TimeUnit.SECONDS);
+        }
+
+
+
         List<FacilityInfo> facilityInfoList=facilityInfoMapper.selectListByApartmentId(id);
         BigDecimal minRent=roomInfoMapper.selectMinRentByApartmentId(id);
 

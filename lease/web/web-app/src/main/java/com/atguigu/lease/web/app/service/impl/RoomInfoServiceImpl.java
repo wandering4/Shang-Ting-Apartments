@@ -25,6 +25,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liubo
@@ -84,7 +85,12 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
         if (roomDetailVo == null) {
             //1.查询房间信息
-            RoomInfo roomInfo = roomInfoMapper.selectById(id);
+            RoomInfo roomInfo =(RoomInfo)redisTemplate.opsForValue().get(RedisConstant.APP_ROOM_INFO_PREFIX +id);
+            if(roomInfo==null){
+                roomInfo=roomInfoMapper.selectById(id);
+                redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, roomInfo,RedisConstant.offSet, TimeUnit.SECONDS);
+            }
+            //可能导致缓存穿透
             if (roomInfo == null) {
                 return null;
             }
@@ -121,7 +127,7 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             roomDetailVo.setLeaseTermList(leaseTermList);
 
             //Redis缓存
-            redisTemplate.opsForValue().set(key, roomDetailVo);
+            redisTemplate.opsForValue().set(key, roomDetailVo,RedisConstant.offSet, TimeUnit.SECONDS);
         }
 
         //保存浏览历史

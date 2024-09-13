@@ -1,5 +1,6 @@
 package com.atguigu.lease.web.admin.service.impl;
 
+import com.atguigu.lease.common.constant.RedisConstant;
 import com.atguigu.lease.common.exception.LeaseException;
 import com.atguigu.lease.common.result.ResultCodeEnum;
 import com.atguigu.lease.model.entity.*;
@@ -13,9 +14,9 @@ import com.atguigu.lease.web.admin.vo.apartment.ApartmentSubmitVo;
 import com.atguigu.lease.web.admin.vo.fee.FeeValueVo;
 import com.atguigu.lease.web.admin.vo.graph.GraphVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -23,14 +24,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liubo
  * @description 针对表【apartment_info(公寓信息表)】的数据库操作Service实现
  * @createDate 2023-07-24 15:48:00
  */
+
+@Slf4j
 @Service
 public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, ApartmentInfo>
         implements ApartmentInfoService {
@@ -81,6 +84,8 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             graphQueryWrapper.eq(GraphInfo::getItemType, ItemType.APARTMENT);
             graphQueryWrapper.eq(GraphInfo::getItemId,apartmentSubmitVo.getId());
             graphInfoService.remove(graphQueryWrapper);
+            redisTemplate.delete(RedisConstant.APP_GRAPHVOLIST_PREFIX +apartmentSubmitVo.getId());
+
 
             //2.删除配套列表
             LambdaQueryWrapper<ApartmentFacility> facilityQueryWrapper = new LambdaQueryWrapper<>();
@@ -96,6 +101,9 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             LambdaQueryWrapper<ApartmentFeeValue> feeQueryWrapper = new LambdaQueryWrapper<>();
             feeQueryWrapper.eq(ApartmentFeeValue::getApartmentId,apartmentSubmitVo.getId());
             apartmentFeeValueService.remove(feeQueryWrapper);
+
+
+            log.info("删除旧公寓信息完成,id:{}",apartmentSubmitVo.getId());
 
         }
 
@@ -142,7 +150,6 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             apartmentLabelService.saveBatch(apartmentLabelList);
         }
 
-
         //4.插入杂费列表
         List<Long> feeValueIds = apartmentSubmitVo.getFeeValueIds();
         if (!CollectionUtils.isEmpty(feeValueIds)) {
@@ -155,6 +162,8 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
             }
             apartmentFeeValueService.saveBatch(apartmentFeeValueList);
         }
+
+        log.info("更新或插入成功,id:{}",apartmentSubmitVo.getId());
 
     }
 
@@ -214,6 +223,7 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
         graphQueryWrapperqueryWrapper.eq(GraphInfo::getItemId, ItemType.APARTMENT);
         graphQueryWrapperqueryWrapper.eq(GraphInfo::getItemId, id);
         graphInfoService.remove(graphQueryWrapperqueryWrapper);
+        redisTemplate.delete(RedisConstant.APP_GRAPHVOLIST_PREFIX +id);
 
         //删除配套列表
         LambdaQueryWrapper<ApartmentFacility> facilityQueryWrapper=new LambdaQueryWrapper<>();
@@ -224,6 +234,7 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
         LambdaQueryWrapper<ApartmentLabel> labelQueryWrapper=new LambdaQueryWrapper<>();
         labelQueryWrapper.eq(ApartmentLabel::getApartmentId,id);
         apartmentLabelService.remove(labelQueryWrapper);
+
 
         //删除杂费列表
         LambdaQueryWrapper<ApartmentFeeValue> feeValueQueryWrapper=new LambdaQueryWrapper<>();

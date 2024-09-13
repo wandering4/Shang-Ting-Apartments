@@ -14,6 +14,7 @@ import com.atguigu.lease.web.admin.vo.room.RoomSubmitVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,6 +23,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liubo
@@ -51,6 +53,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     private RoomLeaseTermService roomLeaseTermService;
 
     @Autowired
+    private RoomInfoService roomInfoService;
+
+    @Resource
     private RoomInfoMapper roomInfoMapper;
 
     @Autowired
@@ -248,7 +253,12 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
 
 
             //1.查询RoomInfo
-            RoomInfo roomInfo = roomInfoMapper.selectById(id);
+            RoomInfo roomInfo =(RoomInfo)redisTemplate.opsForValue().get(RedisConstant.APP_ROOM_INFO_PREFIX +id);
+            if(roomInfo==null){
+                roomInfo=roomInfoMapper.selectById(id);
+                redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, roomInfo,RedisConstant.offSet, TimeUnit.SECONDS);
+            }
+            //可能导致缓存穿透
             if(roomInfo==null){
                 return null;
             }
@@ -287,7 +297,7 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             roomDetailVo.setPaymentTypeList(paymentTypeList);
             roomDetailVo.setLeaseTermList(leaseTermList);
 
-            redisTemplate.opsForValue().set(key, roomDetailVo);
+            redisTemplate.opsForValue().set(key, roomDetailVo,RedisConstant.offSet, TimeUnit.SECONDS);
         }
 
         return roomDetailVo;
