@@ -24,4 +24,6 @@ public class ScheduledTasks {
         updateWrapper.set(LeaseAgreement::getStatus, LeaseStatus.EXPIRED);
         leaseAgreementService.update(updateWrapper);
     }
+
+
 }

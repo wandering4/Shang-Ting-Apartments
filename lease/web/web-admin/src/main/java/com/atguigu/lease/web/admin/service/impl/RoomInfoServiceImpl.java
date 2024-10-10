@@ -119,8 +119,7 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             termQueryWrapper.eq(RoomLeaseTerm::getRoomId, roomSubmitVo.getId());
             roomLeaseTermService.remove(termQueryWrapper);
 
-            //7.删除缓存
-            redisTemplate.delete(RedisConstant.APP_LOGIN_PREFIX + roomSubmitVo.getId());
+
         }
 
         //1.保存新的graphInfoList
@@ -231,8 +230,7 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
         leaseTermQueryMapper.eq(RoomLeaseTerm::getRoomId, id);
         roomLeaseTermService.remove(leaseTermQueryMapper);
 
-        //删除缓存
-        redisTemplate.delete(RedisConstant.APP_LOGIN_PREFIX + id);
+
     }
 
     @Override
@@ -243,22 +241,20 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     @Override
     public RoomDetailVo getRoomDetailById(Long id) {
 
-        String key=RedisConstant.ADMIN_ROOM_PREFIX + id;
 
-        RoomDetailVo roomDetailVo = (RoomDetailVo) redisTemplate.opsForValue().get(key);
 
-        if (roomDetailVo == null) {
+        RoomDetailVo roomDetailVo ;
+
 
 
             //1.查询RoomInfo
             RoomInfo roomInfo =(RoomInfo)redisTemplate.opsForValue().get(RedisConstant.APP_ROOM_INFO_PREFIX +id);
             if(roomInfo==null){
                 roomInfo=roomInfoMapper.selectById(id);
-                redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, roomInfo,RedisConstant.offSet, TimeUnit.SECONDS);
             }
-            //可能导致缓存穿透
+            //解决缓存穿透
             if(roomInfo==null){
-                return null;
+                redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, "null",RedisConstant.prevent_penetrate, TimeUnit.SECONDS);
             }
 
             roomDetailVo = new RoomDetailVo();
@@ -295,8 +291,6 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
             roomDetailVo.setPaymentTypeList(paymentTypeList);
             roomDetailVo.setLeaseTermList(leaseTermList);
 
-            redisTemplate.opsForValue().set(key, roomDetailVo,RedisConstant.offSet, TimeUnit.SECONDS);
-        }
 
         return roomDetailVo;
     }

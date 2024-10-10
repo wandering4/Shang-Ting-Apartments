@@ -13,12 +13,20 @@ import com.atguigu.lease.web.app.vo.graph.GraphVo;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.geo.*;
+import org.springframework.data.redis.connection.RedisGeoCommands;
+import org.springframework.data.redis.core.GeoOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoReference;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author liubo
@@ -101,6 +109,42 @@ public class ApartmentInfoServiceImpl extends ServiceImpl<ApartmentInfoMapper, A
         apartmentDetailVo.setFacilityInfoList(facilityInfoList);
         apartmentDetailVo.setMinRent(minRent);
         return apartmentDetailVo;
+    }
+
+    /**
+     *
+     * @param n 方圆n公里
+     * @param latitude 纬度
+     * @param longitude 经度
+     * @return 公寓id的集合
+     */
+    @Override
+    public List<Long> listApartmentByAddress(int n, double latitude, double longitude) {
+        Point point = new Point(longitude, latitude);
+        //设置半径范围 (KILOMETERS 千米；METERS 米)
+        Metric metric = RedisGeoCommands.DistanceUnit.KILOMETERS;
+        Distance distance = new Distance(n, metric);
+        Circle circle = new Circle(point, distance);
+
+        RedisGeoCommands.GeoRadiusCommandArgs geoRadiusCommandArgs = RedisGeoCommands.GeoRadiusCommandArgs
+                .newGeoRadiusArgs()
+                .includeDistance()//包含距离
+                .includeCoordinates()//包含经纬度
+                .sortAscending();//正序排序
+//                .limit(50); //条数
+        GeoResults<RedisGeoCommands.GeoLocation<Object>> radius = redisTemplate.opsForGeo().radius(RedisConstant.APARTMENT_GEO_PREFIX,circle, geoRadiusCommandArgs);
+
+        List<Long> apartmentIds = new ArrayList<>();
+        if (radius != null) {
+            Iterator<GeoResult<RedisGeoCommands.GeoLocation<Object>>> iterator = radius.iterator();
+            while (iterator.hasNext()) {
+                GeoResult<RedisGeoCommands.GeoLocation<Object>> geoResult = iterator.next();
+                String apartmentId = geoResult.getContent().getName().toString(); // 直接获取公寓 ID
+                apartmentIds.add(Long.parseLong(apartmentId));
+            }
+
+        }
+        return apartmentIds;
     }
 }
 

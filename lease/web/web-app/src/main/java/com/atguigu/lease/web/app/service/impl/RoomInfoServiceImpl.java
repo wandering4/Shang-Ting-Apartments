@@ -90,8 +90,9 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
                 roomInfo=roomInfoMapper.selectById(id);
                 redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, roomInfo,RedisConstant.offSet, TimeUnit.SECONDS);
             }
-            //可能导致缓存穿透
+            //解决缓存穿透
             if (roomInfo == null) {
+                redisTemplate.opsForValue().set(RedisConstant.APP_ROOM_INFO_PREFIX +id, "null",RedisConstant.prevent_penetrate, TimeUnit.SECONDS);
                 return null;
             }
 

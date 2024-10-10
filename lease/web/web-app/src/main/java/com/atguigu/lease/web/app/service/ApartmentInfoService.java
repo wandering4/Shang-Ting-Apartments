@@ -5,6 +5,8 @@ import com.atguigu.lease.web.app.vo.apartment.ApartmentDetailVo;
 import com.atguigu.lease.web.app.vo.apartment.ApartmentItemVo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+
 /**
  * @author liubo
  * @description 针对表【apartment_info(公寓信息表)】的数据库操作Service
@@ -14,4 +16,6 @@ public interface ApartmentInfoService extends IService<ApartmentInfo> {
     ApartmentItemVo selectApartmentItemVoById(Long apartmentId);
 
     ApartmentDetailVo getApartmentDetailById(Long id);
+
+    List<Long> listApartmentByAddress(int n, double latitude, double longitude);
 }
