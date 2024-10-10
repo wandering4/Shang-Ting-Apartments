@@ -20,6 +20,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -90,6 +91,9 @@ public class LoginServiceImpl implements LoginService {
                 throw new LeaseException(ResultCodeEnum.APP_ACCOUNT_DISABLED_ERROR);
             }
         }
+
+        String activeKey= RedisConstant.DAILY_ACTIVE_PREFIX+ LocalDate.now();
+        redisTemplate.opsForHyperLogLog().add(activeKey,loginVo.getPhone());
 
         return JwtUtil.createToken(userInfo.getId(),userInfo.getPhone());
     }

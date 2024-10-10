@@ -72,4 +72,12 @@ public class Knife4jConfiguration {
                         "/admin/user/**"
                 ).build();
     }
+
+    @Bean
+    public GroupedOpenApi activeAPI() {
+        return GroupedOpenApi.builder().group("活跃人数管理").
+                pathsToMatch(
+                        "/admin/active/**"
+                ).build();
+    }
 }

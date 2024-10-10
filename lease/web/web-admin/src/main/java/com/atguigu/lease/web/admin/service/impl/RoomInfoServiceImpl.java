@@ -52,8 +52,6 @@ public class RoomInfoServiceImpl extends ServiceImpl<RoomInfoMapper, RoomInfo>
     @Autowired
     private RoomLeaseTermService roomLeaseTermService;
 
-    @Autowired
-    private RoomInfoService roomInfoService;
 
     @Resource
     private RoomInfoMapper roomInfoMapper;
